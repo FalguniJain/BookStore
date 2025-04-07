@@ -1,0 +1,164 @@
+📚 BookLoop Masterplan
+🧠 App Overview & Objectives
+BookLoop is a hyper-local second-hand book exchange platform tailored for students and book lovers. It empowers users to easily browse, post, and acquire used books—encouraging reuse, affordability, and community-driven exchange within a single campus.
+
+🎯 Primary Goals
+Enable book discovery and exchange without login friction
+
+Keep the UI minimal and mobile-friendly
+
+Prioritize speed, simplicity, and trust in a campus-based environment
+
+👥 Target Audience
+College & university students
+
+Budget-conscious readers
+
+Local reading clubs or study groups
+
+People decluttering old books
+
+🔑 Core Features & Functionality
+🏠 Homepage
+Search bar (by title/author)
+
+Filters:
+
+Subject (dropdown)
+
+Condition (New / Used)
+
+Free books only (toggle)
+
+Feed of book cards, showing:
+
+Image, Title, Author
+
+Condition, Price
+
+“Call” or “WhatsApp” button
+
+“Sold” ribbon if marked sold
+
+➕ Post a Book
+Simple form:
+
+Title, Author, Subject, Condition
+
+Price (₹ or Free)
+
+Phone number
+
+Upload one photo
+
+On submit:
+
+Book appears in listing
+
+User gets a secret edit link
+
+📝 Edit/Delete Listing
+Accessed via secret link
+
+Prefilled form with ability to:
+
+Update listing
+
+Mark as Sold
+
+Delete listing
+
+📞 Contact Seller
+No messaging system
+
+Seller’s phone number shown or hidden behind “Call”/“Contact” button
+
+🚨 Moderation
+Report button on every listing
+
+Reports sent to admin via email or dashboard
+
+Admin can remove listings manually
+
+💻 Platform
+Platform Type: Website (mobile-first design)
+
+Access: Open access; no login or account system required
+
+⚙️ Tech Stack Recommendations
+Layer	Tool/Service	Notes
+Frontend	HTML + TailwindCSS + JS	Or React if needed later
+Hosting	Vercel / Netlify	For fast static site deployment
+Database	Firebase Firestore	Store book listings & metadata
+File Uploads	Firebase Storage	Secure book image uploads
+Backend	None initially	Firebase handles data
+Admin Tools	Firebase Console	For manual moderation/reporting
+🧱 Conceptual Data Model
+Collection: books
+
+Field	Type	Description
+title	string	Book title
+author	string	Author name
+subject	string	Dropdown value
+condition	string	"New" or "Used"
+price	number	₹ or 0 for free
+phone	string	Seller’s phone number
+imageUrl	string	Link to image in Firebase Storage
+createdAt	timestamp	Post time
+sold	boolean	True if marked as sold
+secretId	string	Used for edit/delete link
+reportCount	number	Incremented when reported
+🎨 UI Design Principles
+Clean and distraction-free layout
+
+Bold CTAs (“Post a Book”, “Call Seller”)
+
+Cards that display all key book info at a glance
+
+Mobile-first responsive design (cards stack vertically)
+
+Sticky top nav for easy access to search & post
+
+🔐 Security Considerations
+No login system (lightweight)
+
+Use Firestore security rules to:
+
+Allow reads for all
+
+Allow writes only on create or with valid secretId
+
+Optional: CAPTCHA or email verification to reduce spam
+
+Secret edit links = access control for editing posts
+
+🚀 Development Phases
+Phase 1: MVP
+Homepage with browse, search & filters
+
+Post a book form
+
+Secret link-based post management
+
+Phone-based contact
+
+Manual moderation
+
+Phase 2: Admin Features
+Simple dashboard to manage reports
+
+Auto-hide listings after 30 days (optional)
+
+Moderation tools (approve/delete/report count threshold)
+
+Phase 3: Expansion
+Multi-campus support
+
+Campus/city dropdown filter
+
+Optional login system
+
+Saved favorites or wishlist
+
+Metrics dashboard (most viewed books, subjects, etc.)
+
