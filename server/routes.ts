@@ -46,6 +46,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const books = await storage.getAllBooks();
       res.json(books);
     } catch (error) {
+      console.error("Error fetching books:", error);
       res.status(500).json({ message: "Failed to fetch books" });
     }
   });
@@ -124,17 +125,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Book image is required" });
       }
 
+      console.log("Processing book creation with data:", req.body);
+      
+      // Parse price safely
+      let price = 0;
+      try {
+        price = parseInt(req.body.price);
+        if (isNaN(price)) price = 0;
+      } catch (e) {
+        price = 0;
+      }
+
       const bookData = {
         title: req.body.title,
         author: req.body.author,
         subject: req.body.subject,
         condition: req.body.condition,
-        price: parseInt(req.body.price),
+        price: price,
         phone: req.body.phone,
         imageUrl: `/uploads/${req.file.filename}`,
         sold: false,
         secretId: uuidv4(),
       };
+
+      console.log("Book data prepared:", bookData);
 
       // Validate the book data
       try {
@@ -142,16 +156,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } catch (error) {
         if (error instanceof ZodError) {
           const validationError = fromZodError(error);
+          console.error("Validation error:", validationError.message);
           return res.status(400).json({ message: validationError.message });
         }
         throw error;
       }
 
+      console.log("Book data validated successfully");
       const book = await storage.createBook(bookData);
+      console.log("Book created successfully:", book);
       res.status(201).json(book);
     } catch (error) {
       console.error("Error creating book:", error);
-      res.status(500).json({ message: "Failed to create book" });
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      res.status(500).json({ message: "Failed to create book", error: errorMessage });
     }
   });
 

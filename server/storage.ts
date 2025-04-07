@@ -58,16 +58,28 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createBook(insertBook: InsertBook): Promise<Book> {
-    const secretId = uuidv4();
-    const [book] = await db
-      .insert(books)
-      .values({
-        ...insertBook,
-        secretId,
-        reportCount: 0,
-      })
-      .returning();
-    return book;
+    // Clone the insertBook to avoid modifying the original object
+    const bookData = { ...insertBook };
+    
+    // Generate secretId if not provided
+    if (!bookData.secretId) {
+      bookData.secretId = uuidv4();
+    }
+    
+    // Insert book into database
+    try {
+      console.log("Inserting book with data:", bookData);
+      const [book] = await db
+        .insert(books)
+        .values(bookData)
+        .returning();
+      
+      console.log("Book inserted successfully:", book);
+      return book;
+    } catch (error) {
+      console.error("Database error creating book:", error);
+      throw error;
+    }
   }
 
   async updateBook(id: number, bookUpdate: Partial<Book>): Promise<Book | undefined> {
