@@ -1,7 +1,9 @@
 import { books, users, type Book, type InsertBook, type User, type InsertUser } from "@shared/schema";
 import { v4 as uuidv4 } from 'uuid';
-import { db } from "./db";
+import { db, pool } from "./db";
 import { eq, and, or, ilike, lte } from "drizzle-orm";
+import session from "express-session";
+import connectPg from "connect-pg-simple";
 
 // Interface for storage operations
 export interface IStorage {
@@ -20,9 +22,21 @@ export interface IStorage {
   reportBook(id: number): Promise<Book | undefined>;
   searchBooks(query: string): Promise<Book[]>;
   filterBooks(filters: { subject?: string; condition?: string; freeOnly?: boolean }): Promise<Book[]>;
+  
+  // Session management
+  sessionStore: session.Store;
 }
 
 export class DatabaseStorage implements IStorage {
+  sessionStore: session.Store;
+
+  constructor() {
+    const PostgresStore = connectPg(session);
+    this.sessionStore = new PostgresStore({
+      pool,
+      createTableIfMissing: true
+    });
+  }
   // User methods
   async getUser(id: number): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));

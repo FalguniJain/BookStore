@@ -8,6 +8,7 @@ import path from "path";
 import fs from "fs";
 import { ZodError } from "zod";
 import { fromZodError } from "zod-validation-error";
+import { setupAuth } from "./auth";
 
 // Set up upload directory
 const uploadDir = path.join(process.cwd(), "uploads");
@@ -40,6 +41,8 @@ const upload = multer({
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Set up authentication routes and middleware
+  setupAuth(app);
   // Get all books
   app.get("/api/books", async (req, res) => {
     try {

@@ -5,13 +5,17 @@ import { Toaster } from "@/components/ui/toaster";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/Home";
 import EditBook from "@/pages/EditBook";
+import AuthPage from "@/pages/auth-page";
 import Toast from "@/components/Toast";
+import { AuthProvider } from "./hooks/use-auth";
+import { ProtectedRoute } from "./lib/protected-route";
 
 function Router() {
   return (
     <Switch>
-      <Route path="/" component={Home} />
-      <Route path="/edit/:secretId" component={EditBook} />
+      <ProtectedRoute path="/" component={Home} />
+      <ProtectedRoute path="/edit/:secretId" component={EditBook} />
+      <Route path="/auth" component={AuthPage} />
       <Route component={NotFound} />
     </Switch>
   );
@@ -20,9 +24,11 @@ function Router() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <Router />
-      <Toaster />
-      <Toast />
+      <AuthProvider>
+        <Router />
+        <Toaster />
+        <Toast />
+      </AuthProvider>
     </QueryClientProvider>
   );
 }
