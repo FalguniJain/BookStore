@@ -1,11 +1,13 @@
-import { books, type Book, type InsertBook } from "@shared/schema";
+import { books, users, type Book, type InsertBook, type User, type InsertUser } from "@shared/schema";
 import { v4 as uuidv4 } from 'uuid';
+import { db } from "./db";
+import { eq, and, or, ilike, lte } from "drizzle-orm";
 
 // Interface for storage operations
 export interface IStorage {
-  getUser(id: number): Promise<any | undefined>;
-  getUserByUsername(username: string): Promise<any | undefined>;
-  createUser(user: any): Promise<any>;
+  getUser(id: number): Promise<User | undefined>;
+  getUserByUsername(username: string): Promise<User | undefined>;
+  createUser(user: InsertUser): Promise<User>;
 
   // Book operations
   getAllBooks(): Promise<Book[]>;
@@ -20,128 +22,138 @@ export interface IStorage {
   filterBooks(filters: { subject?: string; condition?: string; freeOnly?: boolean }): Promise<Book[]>;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<number, any>;
-  private books: Map<number, Book>;
-  userCurrentId: number;
-  bookCurrentId: number;
-
-  constructor() {
-    this.users = new Map();
-    this.books = new Map();
-    this.userCurrentId = 1;
-    this.bookCurrentId = 1;
+export class DatabaseStorage implements IStorage {
+  // User methods
+  async getUser(id: number): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user || undefined;
   }
 
-  // User methods - kept from original
-  async getUser(id: number): Promise<any | undefined> {
-    return this.users.get(id);
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user || undefined;
   }
 
-  async getUserByUsername(username: string): Promise<any | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username,
-    );
-  }
-
-  async createUser(insertUser: any): Promise<any> {
-    const id = this.userCurrentId++;
-    const user = { ...insertUser, id };
-    this.users.set(id, user);
+  async createUser(insertUser: InsertUser): Promise<User> {
+    const [user] = await db
+      .insert(users)
+      .values(insertUser)
+      .returning();
     return user;
   }
 
   // Book methods
   async getAllBooks(): Promise<Book[]> {
-    return Array.from(this.books.values());
+    return await db.select().from(books);
   }
 
   async getBookById(id: number): Promise<Book | undefined> {
-    return this.books.get(id);
+    const [book] = await db.select().from(books).where(eq(books.id, id));
+    return book || undefined;
   }
 
   async getBookBySecretId(secretId: string): Promise<Book | undefined> {
-    return Array.from(this.books.values()).find(
-      (book) => book.secretId === secretId
-    );
+    const [book] = await db.select().from(books).where(eq(books.secretId, secretId));
+    return book || undefined;
   }
 
   async createBook(insertBook: InsertBook): Promise<Book> {
-    const id = this.bookCurrentId++;
     const secretId = uuidv4();
-    const book: Book = { 
-      ...insertBook, 
-      id, 
-      secretId,
-      reportCount: 0,
-      createdAt: new Date(),
-    };
-    this.books.set(id, book);
+    const [book] = await db
+      .insert(books)
+      .values({
+        ...insertBook,
+        secretId,
+        reportCount: 0,
+      })
+      .returning();
     return book;
   }
 
   async updateBook(id: number, bookUpdate: Partial<Book>): Promise<Book | undefined> {
-    const book = this.books.get(id);
-    if (!book) return undefined;
-
-    const updatedBook = { ...book, ...bookUpdate };
-    this.books.set(id, updatedBook);
-    return updatedBook;
+    const [book] = await db
+      .update(books)
+      .set(bookUpdate)
+      .where(eq(books.id, id))
+      .returning();
+    
+    return book || undefined;
   }
 
   async updateBookBySecretId(secretId: string, bookUpdate: Partial<Book>): Promise<Book | undefined> {
-    const book = await this.getBookBySecretId(secretId);
-    if (!book) return undefined;
-
-    return this.updateBook(book.id, bookUpdate);
+    const [book] = await db
+      .update(books)
+      .set(bookUpdate)
+      .where(eq(books.secretId, secretId))
+      .returning();
+    
+    return book || undefined;
   }
 
   async deleteBookBySecretId(secretId: string): Promise<boolean> {
-    const book = await this.getBookBySecretId(secretId);
-    if (!book) return false;
-
-    return this.books.delete(book.id);
+    const result = await db
+      .delete(books)
+      .where(eq(books.secretId, secretId))
+      .returning({ id: books.id });
+    
+    return result.length > 0;
   }
 
   async reportBook(id: number): Promise<Book | undefined> {
-    const book = this.books.get(id);
+    const book = await this.getBookById(id);
     if (!book) return undefined;
 
-    const updatedBook = { 
-      ...book, 
-      reportCount: book.reportCount + 1 
-    };
-    this.books.set(id, updatedBook);
+    const [updatedBook] = await db
+      .update(books)
+      .set({ reportCount: book.reportCount + 1 })
+      .where(eq(books.id, id))
+      .returning();
+
     return updatedBook;
   }
 
   async searchBooks(query: string): Promise<Book[]> {
-    const lowercaseQuery = query.toLowerCase();
-    return Array.from(this.books.values()).filter(book => 
-      book.title.toLowerCase().includes(lowercaseQuery) || 
-      book.author.toLowerCase().includes(lowercaseQuery)
-    );
+    if (!query || query.trim() === '') {
+      return this.getAllBooks();
+    }
+
+    const lowercaseQuery = `%${query.toLowerCase()}%`;
+    
+    return await db
+      .select()
+      .from(books)
+      .where(
+        or(
+          ilike(books.title, lowercaseQuery),
+          ilike(books.author, lowercaseQuery)
+        )
+      );
   }
 
   async filterBooks(filters: { subject?: string; condition?: string; freeOnly?: boolean }): Promise<Book[]> {
-    return Array.from(this.books.values()).filter(book => {
-      let match = true;
-      
-      if (filters.subject && filters.subject !== "All Subjects") {
-        match = match && book.subject === filters.subject;
-      }
-      
-      if (filters.condition && filters.condition !== "All") {
-        match = match && book.condition === filters.condition;
-      }
-      
-      if (filters.freeOnly) {
-        match = match && book.price === 0;
-      }
-      
-      return match;
-    });
+    let conditions = [];
+
+    if (filters.subject && filters.subject !== "All Subjects") {
+      conditions.push(eq(books.subject, filters.subject));
+    }
+    
+    if (filters.condition && filters.condition !== "All") {
+      conditions.push(eq(books.condition, filters.condition));
+    }
+    
+    if (filters.freeOnly) {
+      conditions.push(lte(books.price, 0));
+    }
+
+    if (conditions.length === 0) {
+      return this.getAllBooks();
+    }
+
+    return await db
+      .select()
+      .from(books)
+      .where(and(...conditions));
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();
